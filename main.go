@@ -1,14 +1,34 @@
 package main
 
-import "fmt"
+import (
+	"database/sql"
+	"fmt"
+	"log"
+	"os"
+
+	"github.com/joho/godotenv"
+	_ "github.com/lib/pq"
+)
 
 func main() {
-	fmt.Println("go" + "lang")
+	godotenv.Load()
 
-	fmt.Println("1+1=", 1+1)
-	fmt.Println("7.0/3.0 =", 7.0/3.0)
+	conn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+		os.Getenv("DB_HOST"),
+		os.Getenv("DB_PORT"),
+		os.Getenv("DB_USER"),
+		os.Getenv("DB_PASSWORD"),
+		os.Getenv("DB_NAME"),
+	)
 
-	fmt.Println(true && false)
-	fmt.Println(true || false)
-	fmt.Println(!true)
+	db, err := sql.Open("postgres", conn)
+	if err != nil {
+		panic(err)
+	}
+
+	if err := db.Ping(); err != nil {
+		log.Fatal("Не удалось подключиться к базе данных:", err)
+	}
+
+	fmt.Println("Подключено к базе данных")
 }
