@@ -13,3 +13,11 @@
 .button_email{
     margin: 5%;
 }
+
+#result {
+    margin-top: 15px;
+    padding: 12px;
+    border-radius: 4px;
+    display: none;
+    font-size: 13px;
+}

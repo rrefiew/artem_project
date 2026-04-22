@@ -11,10 +11,24 @@
         <h2>Введите email для проверки</h2>
 
         <div class="email_form">
-            <input type="email" placeholder="email..." required>
+            <input type="email" id="emailInput" placeholder="email..." required>
         </div>
 
-        <button class="button_email">Подтвердить</button>
+        <button class="button_email" id="checkBtn">Подтвердить</button>
+
+    <div id = "result"></div>
+
+    <div class="divider"></div>
+        
+        <h3>Анализ сайта</h3>
+        <div class="input-group">
+            <input type="url" id="siteInput" placeholder="https://example.com" required>
+        </div>
+        
+        <button class="button_email" id="analyzeBtn">Анализировать</button>
+        <div id="privacyResult"></div>
     </div>
+
+    <script src="script.js"></script>
 </body>
 </html>

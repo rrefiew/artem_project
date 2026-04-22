@@ -1,0 +1,98 @@
+[
+    {
+        "text": "We do not share your personal data with third parties",
+        "labels": {"data_sharing": 0, "tracking": 0, "ads": 0, "data_retention": 0, "user_rights": 0}
+    },
+    {
+        "text": "We never sell your information to advertisers",
+        "labels": {"data_sharing": 0, "tracking": 0, "ads": 0, "data_retention": 0, "user_rights": 0}
+    },
+    {
+        "text": "Your data is kept confidential and secure",
+        "labels": {"data_sharing": 0, "tracking": 0, "ads": 0, "data_retention": 0, "user_rights": 0}
+    },
+    {
+        "text": "No tracking cookies are used on this website",
+        "labels": {"data_sharing": 0, "tracking": 0, "ads": 0, "data_retention": 0, "user_rights": 0}
+    },
+    {
+        "text": "We may share your data with third party partners",
+        "labels": {"data_sharing": 1, "tracking": 0, "ads": 0, "data_retention": 0, "user_rights": 0}
+    },
+    {
+        "text": "Your information is disclosed to our affiliates",
+        "labels": {"data_sharing": 1, "tracking": 0, "ads": 0, "data_retention": 0, "user_rights": 0}
+    },
+    {
+        "text": "We transfer personal data to service providers",
+        "labels": {"data_sharing": 1, "tracking": 0, "ads": 0, "data_retention": 0, "user_rights": 0}
+    },
+    {
+        "text": "Third parties may receive your customer information",
+        "labels": {"data_sharing": 1, "tracking": 0, "ads": 0, "data_retention": 0, "user_rights": 0}
+    },
+    {
+        "text": "We use cookies to track your browsing behavior",
+        "labels": {"data_sharing": 0, "tracking": 1, "ads": 0, "data_retention": 0, "user_rights": 0}
+    },
+    {
+        "text": "Analytics services monitor your activity on our site",
+        "labels": {"data_sharing": 0, "tracking": 1, "ads": 0, "data_retention": 0, "user_rights": 0}
+    },
+    {
+        "text": "Tracking pixels collect data about your visits",
+        "labels": {"data_sharing": 0, "tracking": 1, "ads": 0, "data_retention": 0, "user_rights": 0}
+    },
+    {
+        "text": "We fingerprint your device for identification purposes",
+        "labels": {"data_sharing": 0, "tracking": 1, "ads": 0, "data_retention": 0, "user_rights": 0}
+    },
+    {
+        "text": "We show personalized advertisements based on your data",
+        "labels": {"data_sharing": 0, "tracking": 0, "ads": 1, "data_retention": 0, "user_rights": 0}
+    },
+    {
+        "text": "Your information is used for targeted advertising",
+        "labels": {"data_sharing": 0, "tracking": 0, "ads": 1, "data_retention": 0, "user_rights": 0}
+    },
+    {
+        "text": "Ad networks receive your browsing information",
+        "labels": {"data_sharing": 0, "tracking": 0, "ads": 1, "data_retention": 0, "user_rights": 0}
+    },
+    {
+        "text": "We partner with advertising companies to show ads",
+        "labels": {"data_sharing": 0, "tracking": 0, "ads": 1, "data_retention": 0, "user_rights": 0}
+    },
+    {
+        "text": "We retain your data for as long as necessary",
+        "labels": {"data_sharing": 0, "tracking": 0, "ads": 0, "data_retention": 1, "user_rights": 0}
+    },
+    {
+        "text": "Personal information is kept for seven years",
+        "labels": {"data_sharing": 0, "tracking": 0, "ads": 0, "data_retention": 1, "user_rights": 0}
+    },
+    {
+        "text": "We store your data until you request deletion",
+        "labels": {"data_sharing": 0, "tracking": 0, "ads": 0, "data_retention": 1, "user_rights": 0}
+    },
+    {
+        "text": "Data retention period is specified in our policy",
+        "labels": {"data_sharing": 0, "tracking": 0, "ads": 0, "data_retention": 1, "user_rights": 0}
+    },
+    {
+        "text": "You have the right to access your personal data",
+        "labels": {"data_sharing": 0, "tracking": 0, "ads": 0, "data_retention": 0, "user_rights": 1}
+    },
+    {
+        "text": "You can request deletion of your information anytime",
+        "labels": {"data_sharing": 0, "tracking": 0, "ads": 0, "data_retention": 0, "user_rights": 1}
+    },
+    {
+        "text": "You may opt out of data collection at any time",
+        "labels": {"data_sharing": 0, "tracking": 0, "ads": 0, "data_retention": 0, "user_rights": 1}
+    },
+    {
+        "text": "We respect your privacy rights under GDPR regulations",
+        "labels": {"data_sharing": 0, "tracking": 0, "ads": 0, "data_retention": 0, "user_rights": 1}
+    }
+]

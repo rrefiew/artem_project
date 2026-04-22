@@ -21,5 +21,9 @@
         "128": "/images/android-chrome-192x192.png"
     },
     
-    "permissions": ["activeTab", "scripting"]
+    "permissions": ["activeTab", "scripting"],
+
+    "host_permissions": [
+    "http://localhost:8080/*"
+  ]
 }
