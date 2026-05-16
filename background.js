@@ -304,7 +304,7 @@ async function saveEvidenceSnapshot(tabId) {
   if (!evidence) {
     return;
   }
-
+//
   await chrome.storage.local.set({
     currentUrl: evidence.pageUrl,
     lastEvidence: evidence,
