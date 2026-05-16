@@ -500,6 +500,12 @@ async function checkEmail() {
     return;
   }
 
+   if (!isValidEmail(email)) {
+    emailResult.className = "email-result error";
+    emailResult.textContent = "Введите корректный email.";
+    return;
+  }
+
   checkEmailBtn.disabled = true;
   emailResult.className = "email-result";
   emailResult.textContent = "Проверяю email...";
@@ -514,8 +520,14 @@ async function checkEmail() {
     });
 
     if (!response.ok) {
-      throw new Error(`Backend вернул ошибку: ${response.status}`);
-    }
+  const errorText = await response.text();
+
+  if (response.status === 502) {
+    throw new Error("Сервис проверки временно недоступен. Попробуйте позже.");
+  }
+
+  throw new Error(errorText || `Ошибка сервера: ${response.status}`);
+}
 
     const result = await response.json();
 
@@ -571,15 +583,10 @@ function renderEmailSources(sources) {
     const name = escapeHtml(source.name || "Неизвестный источник");
     const date = escapeHtml(source.date || "дата неизвестна");
 
-    const fields = Array.isArray(source.fields) && source.fields.length > 0
-      ? source.fields.map(escapeHtml).join(", ")
-      : "поля не указаны";
-
     return `
       <div class="email-source-item">
         <div class="email-source-name">${name}</div>
         <div class="email-source-meta">Дата: ${date}</div>
-        <div class="email-source-fields">Данные: ${fields}</div>
       </div>
     `;
   }).join("");
@@ -642,4 +649,8 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
+}
+
+function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }

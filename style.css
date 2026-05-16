@@ -412,29 +412,6 @@ body {
   color: #374151;
 }
 
-.policy-url {
-  margin-top: 10px;
-  font-size: 12px;
-  word-break: break-word;
-}
-
-.policy-source {
-  padding-top: 8px;
-  border-top: 1px solid #edf0f2;
-}
-
-.policy-source-label {
-  margin-bottom: 4px;
-  color: #6b7280;
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.policy-source a {
-  color: #2563eb;
-  text-decoration: underline;
-}
-
 .email-leak-summary {
   margin-bottom: 8px;
 }
