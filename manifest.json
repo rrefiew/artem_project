@@ -1,10 +1,10 @@
 {
-    "name": "CheckEmail",
-    "description":"Проверка конфиденциальности сайта. Проверка утечки данных",
-    "version": "1.0",
-    "manifest_version": 3,
+  "name": "Privacy Monitor",
+  "description": "Фоновая проверка сторонних запросов сайта и проверка email на утечки данных",
+  "version": "1.0",
+  "manifest_version": 3,
 
-    "action": {
+  "action": {
     "default_popup": "index.html",
     "default_icon": {
       "16": "/images/favicon-16x16.png",
@@ -14,16 +14,25 @@
     }
   },
 
-    "icons": {
-        "16": "/images/favicon-16x16.png",
-        "32": "/images/favicon-32x32.png",
-        "48": "/images/favicon-32x32.png",
-        "128": "/images/android-chrome-192x192.png"
-    },
-    
-    "permissions": ["activeTab", "scripting"],
+  "icons": {
+    "16": "/images/favicon-16x16.png",
+    "32": "/images/favicon-32x32.png",
+    "48": "/images/favicon-32x32.png",
+    "128": "/images/android-chrome-192x192.png"
+  },
 
-    "host_permissions": [
-    "http://localhost:8080/*"
+  "background": {
+    "service_worker": "background.js"
+  },
+
+  "permissions": [
+    "storage",
+    "tabs",
+    "webRequest"
+  ],
+
+  "host_permissions": [
+    "http://localhost:8080/*",
+    "<all_urls>"
   ]
 }

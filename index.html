@@ -1,34 +1,108 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="style.css">
-    <title>Document</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy Monitor</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="container">
-        <h2>Введите email для проверки</h2>
+  <div class="app">
+    <header class="header">
+      <h1>Privacy Monitor</h1>
+      <p>Фоновая проверка сторонних запросов сайта</p>
+    </header>
 
-        <div class="email_form">
-            <input type="email" id="emailInput" placeholder="email..." required>
+    <main>
+      <section class="power-section">
+        <button id="toggleBtn" class="power-button off" type="button">
+          OFF
+        </button>
+
+        <div id="statusText" class="status-text">
+          Проверка выключена
         </div>
 
-        <button class="button_email" id="checkBtn">Подтвердить</button>
+        <p class="hint">
+          После включения расширение будет отслеживать сторонние запросы сайтов.
+        </p>
+      </section>
 
-    <div id = "result"></div>
+      <section class="card">
+        <div class="card-title">Текущий сайт</div>
 
-    <div class="divider"></div>
-        
-        <h3>Анализ сайта</h3>
-        <div class="input-group">
-            <input type="url" id="siteInput" placeholder="https://example.com" required>
+        <div id="currentSite" class="site-name">
+          Сайт не определен
         </div>
-        
-        <button class="button_email" id="analyzeBtn">Анализировать</button>
-        <div id="privacyResult"></div>
-    </div>
 
-    <script src="script.js"></script>
+        <div id="networkState" class="analysis-state">
+          Данные пока не собраны
+        </div>
+
+        <div id="riskBadge" class="risk-badge hidden">
+          —
+        </div>
+
+        <button id="checkCurrentSiteBtn" class="secondary-button" type="button">
+          Проверить текущий сайт
+        </button>
+
+        <p class="small-hint">
+          Для полной проверки страница будет обновлена, чтобы расширение увидело сетевые запросы с начала загрузки.
+        </p>
+      </section>
+
+      <section class="card">
+        <div class="card-title">Фактическое поведение сайта</div>
+
+        <div id="evidenceState" class="analysis-state">
+          Сторонние запросы пока не зафиксированы
+        </div>
+
+        <div id="networkStats" class="network-stats"></div>
+
+        <div id="domainsList" class="domains-list"></div>
+
+        <div id="requestsList" class="requests-list"></div>
+      </section>
+
+      <section class="card">
+        <div class="card-title">Вывод</div>
+
+        <div id="verdictState" class="analysis-state">
+          Вывод пока не сформирован
+        </div>
+
+        <div id="verdictList" class="comparison-list"></div>
+      </section>
+
+      <section class="card note-card">
+        <div class="card-title">Пояснение</div>
+        <p>
+          Проверка основана на сетевом поведении сайта: сторонних доменах, аналитических сервисах,
+          рекламных запросах и признаках трекинга.
+        </p>
+      </section>
+
+      <section class="email-section">
+        <button id="showEmailBtn" class="link-button" type="button">
+          Проверить email на утечки
+        </button>
+
+        <div id="emailPanel" class="email-panel hidden">
+          <label for="emailInput">Email</label>
+          <input type="email" id="emailInput" placeholder="example@mail.com">
+
+          <button id="checkEmailBtn" class="secondary-button" type="button">
+            Проверить email
+          </button>
+
+          <div id="emailResult" class="email-result"></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="script.js"></script>
 </body>
 </html>
