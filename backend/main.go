@@ -37,20 +37,24 @@ type Source struct {
 
 // результат анализа политики конфиденциальности :/
 type PrivacyAnalysis struct {
-	URL        string   `json:"url"`
-	Analyzed   bool     `json:"analyzed"`
-	RiskLevel  string   `json:"risk_level"`
-	Summary    []string `json:"summary"`
+	URL       string   `json:"url"`
+	PolicyURL string   `json:"policy_url,omitempty"`
+	Analyzed  bool     `json:"analyzed"`
+	RiskLevel string   `json:"risk_level"`
+	Summary   []string `json:"summary"`
+
 	Categories map[string]struct {
 		Found      int     `json:"found"`
 		Confidence float32 `json:"confidence"`
 		Label      string  `json:"label"`
 	} `json:"categories"`
+
 	Cached bool   `json:"cached"`
 	Error  string `json:"error,omitempty"`
 }
 
 var db *sql.DB
+var dbAvailable bool
 
 func main() {
 	//подключение к бд
@@ -90,13 +94,25 @@ func hashEmail(email string) string {
 	return fmt.Sprintf("%x", hash)
 }
 
-func handleCheck(w http.ResponseWriter, r *http.Request) {
-	//разрешаем запросы от браузерного расширения
+func setCorsHeaders(w http.ResponseWriter) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+}
 
-	//читаем запрос от клиента
+func handleCheck(w http.ResponseWriter, r *http.Request) {
+	setCorsHeaders(w)
+
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	if r.Method != http.MethodPost {
+		http.Error(w, "Метод не поддерживается", http.StatusMethodNotAllowed)
+		return
+	}
+
 	var req HandlerRequest
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
@@ -108,21 +124,17 @@ func handleCheck(w http.ResponseWriter, r *http.Request) {
 
 	fmt.Printf("Проверка email: %s\n", req.Email)
 
-	// проверка кэша в БД
 	foundInCache, cachedResponse, err := checkCacheInDB(emailHash)
 	if err != nil {
-		log.Printf(" Ошибка проверки кэша: %v", err)
+		log.Printf("Ошибка проверки кэша: %v", err)
 	}
 
 	var response *HandlerResponse
 
 	if foundInCache {
-		// кэшик найден - возвращаем
 		fmt.Println("Ответ из кэша БД")
 		response = cachedResponse
-
 	} else {
-		// кэша нет
 		fmt.Println("Кэш не найден, запрос к LeakCheck API...")
 
 		response, err = queryLeakCheck(req.Email)
@@ -132,7 +144,6 @@ func handleCheck(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// сохраняем в БД результат
 		go func() {
 			if err := saveToDB(emailHash, response); err != nil {
 				log.Printf("Не удалось сохранить в БД: %v", err)
@@ -142,7 +153,6 @@ func handleCheck(w http.ResponseWriter, r *http.Request) {
 		}()
 	}
 
-	// отправка ответа
 	fmt.Printf("Найдено %d утечек, поля: %v\n", response.Found, response.Fields)
 
 	w.Header().Set("Content-Type", "application/json")
@@ -155,15 +165,22 @@ func handleCheck(w http.ResponseWriter, r *http.Request) {
 
 // обработчик запроса на анализ сайта
 func handleAnalyze(w http.ResponseWriter, r *http.Request) {
-	// CORS
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	setCorsHeaders(w)
 
-	// читаем URL сайта из запроса
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	if r.Method != http.MethodPost {
+		http.Error(w, "Метод не поддерживается", http.StatusMethodNotAllowed)
+		return
+	}
+
 	var req struct {
 		URL string `json:"url"`
 	}
+
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil || req.URL == "" {
 		http.Error(w, "Неверный запрос: укажите URL", http.StatusBadRequest)
@@ -172,11 +189,10 @@ func handleAnalyze(w http.ResponseWriter, r *http.Request) {
 
 	fmt.Printf("Анализ сайта: %s\n", req.URL)
 
-	// Запускаем анализ
 	result, err := analyzePrivacy(req.URL)
 	if err != nil {
 		log.Printf("Ошибка анализа: %v", err)
-		// частичный результат с ошибкой
+
 		result = &PrivacyAnalysis{
 			URL:       req.URL,
 			Analyzed:  false,
@@ -185,7 +201,6 @@ func handleAnalyze(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Отправляем ответ
 	w.Header().Set("Content-Type", "application/json")
 	err = json.NewEncoder(w).Encode(result)
 	if err != nil {
