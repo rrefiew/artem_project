@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Privacy Monitor</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="auth-body">
+  <div class="auth-page">
+    <div class="auth-page-card">
+      <h1>Privacy Monitor</h1>
+      <p class="auth-page-subtitle">
+        Войдите или зарегистрируйтесь, чтобы оформить Premium.
+      </p>
+
+      <div id="authState" class="analysis-state">
+        Введите email и пароль.
+      </div>
+
+      <input type="email" id="authEmail" class="auth-input" placeholder="email">
+      <input type="password" id="authPassword" class="auth-input" placeholder="пароль">
+
+      <button id="loginBtn" class="secondary-button" type="button">
+        Войти
+      </button>
+
+      <button id="registerBtn" class="secondary-button" type="button">
+        Зарегистрироваться
+      </button>
+
+      <button id="closeAuthPageBtn" class="secondary-button" type="button">
+        Закрыть
+      </button>
+    </div>
+  </div>
+
+  <script src="auth.js"></script>
+</body>
+</html>

@@ -6,13 +6,26 @@
   <title>Privacy Monitor</title>
   <link rel="stylesheet" href="style.css">
 </head>
-<body>
+<body class="popup-body">
   <div class="app">
-    <header class="header">
-      <h1>Privacy Monitor</h1>
-      <p>Фоновая проверка сторонних запросов сайта</p>
-    </header>
+  <header class="header">
+  <div class="header-title">
+    <h1>Privacy Monitor</h1>
+    <p>Фоновая проверка сторонних запросов сайта</p>
+  </div>
 
+  <div class="header-actions">
+    <button id="premiumBtn" class="premium-button" type="button">
+      Premium
+    </button>
+
+    <button id="logoutBtn" class="logout-button hidden" type="button">
+      Выйти
+    </button>
+  </div>
+</header>
+
+  
     <main>
       <section class="power-section">
         <button id="toggleBtn" class="power-button off" type="button">
@@ -52,7 +65,14 @@
         </p>
       </section>
 
-      <section class="card">
+      <section class="card hidden" id="premiumLockCard">
+        <div class="card-title">Фактическое поведение сайта</div>
+        <p class="small-hint">
+          Подробные сетевые данные доступны пользователям с Premium.
+        </p>
+    </section>
+
+      <section class="card" id="evidenceCard">
         <div class="card-title">Фактическое поведение сайта</div>
 
         <div id="evidenceState" class="analysis-state">
@@ -66,7 +86,7 @@
         <div id="requestsList" class="requests-list"></div>
       </section>
 
-      <section class="card">
+      <section class="card" id="verdictCard">
         <div class="card-title">Вывод</div>
 
         <div id="verdictState" class="analysis-state">
@@ -87,7 +107,7 @@
       <section class="email-section">
         <button id="showEmailBtn" class="link-button" type="button">
           Проверить email на утечки
-        </button>/
+        </button>
 
         <div id="emailPanel" class="email-panel hidden">
           <label for="emailInput">Email</label>

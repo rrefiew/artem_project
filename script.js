@@ -1,6 +1,13 @@
+// адреса апи для бэка
 const API_CHECK_EMAIL_URL = "http://localhost:8080/api/check";
+const API_REGISTER_URL = "http://localhost:8080/api/register";
+const API_LOGIN_URL = "http://localhost:8080/api/login";
+const API_ME_URL = "http://localhost:8080/api/me";
+const API_SUBSCRIBE_URL = "http://localhost:8080/api/subscribe";
 
+// основные элементы управления
 const toggleBtn = document.getElementById("toggleBtn");
+const logoutBtn = document.getElementById("logoutBtn");
 const statusText = document.getElementById("statusText");
 const currentSite = document.getElementById("currentSite");
 const networkState = document.getElementById("networkState");
@@ -12,19 +19,48 @@ const networkStats = document.getElementById("networkStats");
 const domainsList = document.getElementById("domainsList");
 const requestsList = document.getElementById("requestsList");
 
+// блок вывода
 const verdictState = document.getElementById("verdictState");
 const verdictList = document.getElementById("verdictList");
 
+// блок проверки email
 const showEmailBtn = document.getElementById("showEmailBtn");
 const emailPanel = document.getElementById("emailPanel");
 const emailInput = document.getElementById("emailInput");
 const checkEmailBtn = document.getElementById("checkEmailBtn");
 const emailResult = document.getElementById("emailResult");
 
+// кнопка premium
+const premiumBtn = document.getElementById("premiumBtn");
+
+// карточки
+const evidenceCard = document.getElementById("evidenceCard");
+const verdictCard = document.getElementById("verdictCard");
+const premiumLockCard = document.getElementById("premiumLockCard");
+
+// начальная загрузка
 document.addEventListener("DOMContentLoaded", async () => {
+  const data = await chrome.storage.local.get(["enabled"]);
+
+  // если состояние еще не задано, расширение выключено
+  if (typeof data.enabled === "undefined") {
+    await chrome.storage.local.set({
+      enabled: false,
+      currentUrl: null,
+      lastEvidence: null,
+      isCollecting: false
+    });
+  }
+
   await renderState();
+
+  // периодически обновляем состояние, чтобы premium мог закончиться сам
+  setInterval(async () => {
+    await renderState();
+  }, 2000);
 });
 
+// включение и выключение проверки
 toggleBtn.addEventListener("click", async () => {
   const data = await chrome.storage.local.get(["enabled"]);
   const newEnabled = !data.enabled;
@@ -52,6 +88,7 @@ toggleBtn.addEventListener("click", async () => {
   }
 });
 
+// ручная проверка текущего сайта
 checkCurrentSiteBtn.addEventListener("click", async () => {
   const data = await chrome.storage.local.get(["enabled"]);
 
@@ -63,14 +100,38 @@ checkCurrentSiteBtn.addEventListener("click", async () => {
   await startCurrentSiteCollection(true);
 });
 
+// показать или скрыть форму email
 showEmailBtn.addEventListener("click", () => {
   emailPanel.classList.toggle("hidden");
 });
 
+// проверка email на утечки
 checkEmailBtn.addEventListener("click", async () => {
   await checkEmail();
 });
 
+// premium: если не вошли, открываем отдельную страницу входа
+premiumBtn.addEventListener("click", async () => {
+  const user = await getAuthUser();
+
+  if (!user) {
+    chrome.tabs.create({
+      url: chrome.runtime.getURL("auth.html")
+    });
+    return;
+  }
+
+  if (isPremiumUser(user)) {
+    premiumBtn.textContent = "Premium";
+    premiumBtn.classList.add("premium-active");
+    networkState.textContent = "Premium уже активен.";
+    return;
+  }
+
+  await activatePremium();
+});
+
+// если в бд что-то изменилось, обновляем расширение
 chrome.storage.onChanged.addListener(async (changes, areaName) => {
   if (areaName !== "local") {
     return;
@@ -80,12 +141,15 @@ chrome.storage.onChanged.addListener(async (changes, areaName) => {
     changes.enabled ||
     changes.currentUrl ||
     changes.lastEvidence ||
-    changes.isCollecting
+    changes.isCollecting ||
+    changes.authToken ||
+    changes.authUser
   ) {
     await renderState();
   }
 });
 
+// отрисовка текущего состояния расш
 async function renderState() {
   const data = await chrome.storage.local.get([
     "enabled",
@@ -94,12 +158,17 @@ async function renderState() {
     "isCollecting"
   ]);
 
+  const user = await getAuthUser();
   const enabled = Boolean(data.enabled);
 
+  renderAuthState(user);
   renderPowerButton(enabled);
+  renderPremiumAccess(user);
 
   if (!enabled) {
     renderDefaultState();
+    renderAuthState(user);
+    renderPremiumAccess(user);
     return;
   }
 
@@ -112,8 +181,12 @@ async function renderState() {
 
   renderEvidence(data.lastEvidence);
   renderNetworkVerdict(data.lastEvidence);
+
+  renderAuthState(user);
+  renderPremiumAccess(user);
 }
 
+// дефолтное состояние, когда проверка выключена
 function renderDefaultState() {
   renderPowerButton(false);
 
@@ -133,6 +206,7 @@ function renderDefaultState() {
   checkCurrentSiteBtn.disabled = false;
 }
 
+// меняем вид большой кнопки
 function renderPowerButton(enabled) {
   if (enabled) {
     toggleBtn.textContent = "ON";
@@ -147,6 +221,7 @@ function renderPowerButton(enabled) {
   }
 }
 
+// запускаем сбор данных по текущей вкладке
 async function startCurrentSiteCollection(reloadPage) {
   const tab = await getCurrentTab();
 
@@ -187,6 +262,7 @@ async function startCurrentSiteCollection(reloadPage) {
   );
 }
 
+// показываем подробные сетевые данные
 function renderEvidence(evidence) {
   networkStats.innerHTML = "";
   domainsList.innerHTML = "";
@@ -221,6 +297,7 @@ function renderEvidence(evidence) {
   renderRequests(evidence.requests);
 }
 
+// рисуем счетчики по категориям
 function renderNetworkStats(categoryCounts) {
   const counts = categoryCounts || {};
 
@@ -254,6 +331,7 @@ function renderNetworkStats(categoryCounts) {
   }
 }
 
+// рисуем список сторонних доменов
 function renderDomains(domains) {
   if (!Array.isArray(domains) || domains.length === 0) {
     return;
@@ -282,6 +360,7 @@ function renderDomains(domains) {
   }
 }
 
+// рисуем примеры запросов
 function renderRequests(requests) {
   if (!Array.isArray(requests) || requests.length === 0) {
     return;
@@ -312,6 +391,7 @@ function renderRequests(requests) {
   }
 }
 
+// общий вывод по сетевому поведению
 function renderNetworkVerdict(evidence) {
   verdictList.innerHTML = "";
 
@@ -339,12 +419,12 @@ function renderNetworkVerdict(evidence) {
   const other = counts.other || 0;
 
   let riskLevel = calculateNetworkRisk({
-  total,
-  analytics,
-  ads,
-  tracking,
-  other
-});
+    total,
+    analytics,
+    ads,
+    tracking,
+    other
+  });
 
   riskBadge.className = `risk-badge ${getRiskClass(riskLevel)}`;
   riskBadge.textContent = getRiskText(riskLevel);
@@ -353,90 +433,91 @@ function renderNetworkVerdict(evidence) {
   networkState.textContent = "Сетевой анализ выполнен";
 
   if (riskLevel === "low") {
-  verdictState.textContent = "Критичных признаков не найдено";
+    verdictState.textContent = "Критичных признаков не найдено";
 
-  if (total === 0) {
-    addVerdictItem(
-      "good",
-      "Сторонние запросы не обнаружены",
-      "Во время проверки расширение не зафиксировало обращений к сторонним доменам."
-    );
-  } else if (ads > 0 && analytics === 0 && tracking === 0) {
-    addVerdictItem(
-      "good",
-      "Обнаружена только реклама",
-      "Сайт загружает рекламные домены, но явных признаков трекинга или аналитики не найдено."
-    );
-  } else {
-    addVerdictItem(
-      "good",
-      "Низкий сетевой риск",
-      "Критичных сетевых признаков не обнаружено."
-    );
+    if (total === 0) {
+      addVerdictItem(
+        "good",
+        "Сторонние запросы не обнаружены",
+        "Во время проверки расширение не зафиксировало обращений к сторонним доменам."
+      );
+    } else if (ads > 0 && analytics === 0 && tracking === 0) {
+      addVerdictItem(
+        "good",
+        "Обнаружена только реклама",
+        "Сайт загружает рекламные домены, но явных признаков трекинга или аналитики не найдено."
+      );
+    } else {
+      addVerdictItem(
+        "good",
+        "Низкий сетевой риск",
+        "Критичных сетевых признаков не обнаружено."
+      );
+    }
+
+    return;
   }
-
-  return;
-}
 
   if (riskLevel === "medium") {
-  verdictState.textContent = "Есть признаки сбора технических данных";
+    verdictState.textContent = "Есть признаки сбора технических данных";
 
-  if (analytics > 0) {
-    addVerdictItem(
-      "warning",
-      "Обнаружена аналитика",
-      "Сайт загружает сторонние аналитические сервисы. Они могут использоваться для анализа поведения пользователя."
-    );
+    if (analytics > 0) {
+      addVerdictItem(
+        "warning",
+        "Обнаружена аналитика",
+        "Сайт загружает сторонние аналитические сервисы. Они могут использоваться для анализа поведения пользователя."
+      );
+    }
+
+    if (ads > 0) {
+      addVerdictItem(
+        "neutral",
+        "Дополнительно обнаружена реклама",
+        "Рекламные запросы сами по себе не считаются высоким риском, но учитываются как часть сетевого поведения сайта."
+      );
+    }
+
+    if (other > 0) {
+      addVerdictItem(
+        "neutral",
+        "Обнаружены прочие сторонние домены",
+        "Сайт выполняет запросы к сторонним доменам, назначение которых не классифицировано."
+      );
+    }
+
+    return;
   }
-
-  if (ads > 0) {
-    addVerdictItem(
-      "neutral",
-      "Дополнительно обнаружена реклама",
-      "Рекламные запросы сами по себе не считаются высоким риском, но учитываются как часть сетевого поведения сайта."
-    );
-  }
-
-  if (other > 0) {
-    addVerdictItem(
-      "neutral",
-      "Обнаружены прочие сторонние домены",
-      "Сайт выполняет запросы к сторонним доменам, назначение которых не классифицировано."
-    );
-  }
-
-  return;
-}
 
   if (riskLevel === "high") {
-  verdictState.textContent = "Обнаружены признаки повышенного риска";
+    verdictState.textContent = "Обнаружены признаки повышенного риска";
 
-  if (tracking > 0) {
-    addVerdictItem(
-      "danger",
-      "Обнаружены признаки трекинга",
-      "Сайт обращается к доменам или URL, похожим на трекинговые сервисы."
-    );
-  }
+    if (tracking > 0) {
+      addVerdictItem(
+        "danger",
+        "Обнаружены признаки трекинга",
+        "Сайт обращается к доменам или URL, похожим на трекинговые сервисы."
+      );
+    }
 
-  if (ads > 0) {
-    addVerdictItem(
-      "warning",
-      "Дополнительно обнаружена реклама",
-      "Рекламные запросы обнаружены вместе с признаками трекинга, поэтому они усиливают общий риск."
-    );
-  }
+    if (ads > 0) {
+      addVerdictItem(
+        "warning",
+        "Дополнительно обнаружена реклама",
+        "Рекламные запросы обнаружены вместе с признаками трекинга, поэтому они усиливают общий риск."
+      );
+    }
 
-  if (analytics > 0) {
-    addVerdictItem(
-      "warning",
-      "Дополнительно обнаружена аналитика",
-      "Помимо трекинга сайт также загружает аналитические сервисы."
-    );
+    if (analytics > 0) {
+      addVerdictItem(
+        "warning",
+        "Дополнительно обнаружена аналитика",
+        "Помимо трекинга сайт также загружает аналитические сервисы."
+      );
+    }
   }
 }
-}
 
+// считаем уровень риска по категориям
 function calculateNetworkRisk(stats) {
   const total = stats.total || 0;
   const analytics = stats.analytics || 0;
@@ -448,24 +529,22 @@ function calculateNetworkRisk(stats) {
     return "low";
   }
 
-  // Явный трекинг считаем самым серьезным признаком.
+  // явный трекинг считаем самым серьезным признаком
   if (tracking > 0) {
     return "high";
   }
 
-  // Только реклама без трекинга и аналитики — низкий риск.
-  // Это не идеально, но для пользовательского интерфейса адекватнее,
-  // потому что реклама встречается почти на каждом сайте.
+  // только реклама без аналитики и трекинга - низкий риск
   if (ads > 0 && analytics === 0 && other === 0) {
     return "low";
   }
 
-  // Аналитика — средний риск, потому что она обычно собирает поведение пользователя.
+  // аналитика - средний риск
   if (analytics > 0) {
     return "medium";
   }
 
-  // Прочие сторонние домены — средний риск, потому что назначение неясно.
+  // прочие сторонние домены - средний риск
   if (other > 0) {
     return "medium";
   }
@@ -473,6 +552,7 @@ function calculateNetworkRisk(stats) {
   return "low";
 }
 
+// добавляем карточку вывода
 function addVerdictItem(level, title, text) {
   const div = document.createElement("div");
   div.className = `comparison-item comparison-${level}`;
@@ -491,6 +571,7 @@ function addVerdictItem(level, title, text) {
   verdictList.appendChild(div);
 }
 
+// проверка email
 async function checkEmail() {
   const email = emailInput.value.trim();
 
@@ -500,7 +581,7 @@ async function checkEmail() {
     return;
   }
 
-   if (!isValidEmail(email)) {
+  if (!isValidEmail(email)) {
     emailResult.className = "email-result error";
     emailResult.textContent = "Введите корректный email.";
     return;
@@ -520,25 +601,25 @@ async function checkEmail() {
     });
 
     if (!response.ok) {
-  const errorText = await response.text();
+      const errorText = await response.text();
 
-  if (response.status === 502) {
-    throw new Error("Сервис проверки временно недоступен. Попробуйте позже.");
-  }
+      if (response.status === 502) {
+        throw new Error("Сервис проверки временно недоступен. Попробуйте позже.");
+      }
 
-  throw new Error(errorText || `Ошибка сервера: ${response.status}`);
-}
+      throw new Error(errorText || `Ошибка сервера: ${response.status}`);
+    }
 
     const result = await response.json();
 
     const isLeaked = Boolean(result.is_leaked) || Number(result.found || 0) > 0;
 
     if (isLeaked) {
-    emailResult.className = "email-result warning";
-    emailResult.innerHTML = renderEmailLeakResult(result);
+      emailResult.className = "email-result warning";
+      emailResult.innerHTML = renderEmailLeakResult(result);
     } else {
-    emailResult.className = "email-result success";
-    emailResult.textContent = "Утечки для этого email не найдены.";
+      emailResult.className = "email-result success";
+      emailResult.textContent = "Утечки для этого email не найдены.";
     }
   } catch (error) {
     emailResult.className = "email-result error";
@@ -548,6 +629,7 @@ async function checkEmail() {
   }
 }
 
+//результат проверки email
 function renderEmailLeakResult(result) {
   const found = Number(result.found || 0);
 
@@ -569,6 +651,7 @@ function renderEmailLeakResult(result) {
   `;
 }
 
+//источники утечек
 function renderEmailSources(sources) {
   if (!Array.isArray(sources) || sources.length === 0) {
     return `
@@ -599,6 +682,7 @@ function renderEmailSources(sources) {
   `;
 }
 
+//получаем активную вкладку
 async function getCurrentTab() {
   const tabs = await chrome.tabs.query({
     active: true,
@@ -608,6 +692,7 @@ async function getCurrentTab() {
   return tabs[0];
 }
 
+//достаем домен из url
 function getHostname(url) {
   try {
     return new URL(url).hostname.replace(/^www\./, "");
@@ -616,6 +701,7 @@ function getHostname(url) {
   }
 }
 
+//css-класс риска
 function getRiskClass(riskLevel) {
   switch (riskLevel) {
     case "low":
@@ -629,6 +715,7 @@ function getRiskClass(riskLevel) {
   }
 }
 
+// текст риска
 function getRiskText(riskLevel) {
   switch (riskLevel) {
     case "low":
@@ -642,6 +729,7 @@ function getRiskText(riskLevel) {
   }
 }
 
+// экранируем html
 function escapeHtml(value) {
   return String(value)
     .replaceAll("&", "&amp;")
@@ -651,6 +739,172 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
+//проверка email
 function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
+
+// получаем текущего пользователя
+async function getAuthUser() {
+  const data = await chrome.storage.local.get(["authToken", "authUser"]);
+
+  if (!data.authToken) {
+    return null;
+  }
+
+  try {
+    const response = await fetch(API_ME_URL, {
+      method: "GET",
+      headers: {
+        "Authorization": `Bearer ${data.authToken}`
+      }
+    });
+
+    if (!response.ok) {
+      await chrome.storage.local.remove(["authToken", "authUser"]);
+
+      await chrome.storage.local.set({
+        enabled: false,
+        currentUrl: null,
+        lastEvidence: null,
+        isCollecting: false
+      });
+
+      chrome.runtime.sendMessage({
+        type: "RESET_STATE"
+      });
+
+      return null;
+    }
+
+    const result = await response.json();
+
+    await chrome.storage.local.set({
+      authUser: result.user
+    });
+
+    return result.user;
+  } catch {
+    return data.authUser || null;
+  }
+}
+
+// оформление premium
+async function activatePremium() {
+  const data = await chrome.storage.local.get(["authToken"]);
+
+  if (!data.authToken) {
+    chrome.tabs.create({
+      url: chrome.runtime.getURL("auth.html")
+    });
+    return;
+  }
+
+  premiumBtn.disabled = true;
+  premiumBtn.textContent = "Loading...";
+
+  try {
+    const response = await fetch(API_SUBSCRIBE_URL, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${data.authToken}`
+      }
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(errorText || "Не удалось оформить Premium.");
+    }
+
+    const result = await response.json();
+
+    await chrome.storage.local.set({
+      authUser: result.user
+    });
+
+    await renderState();
+  } catch (error) {
+    networkState.textContent = error.message;
+  } finally {
+    premiumBtn.disabled = false;
+  }
+}
+
+// есть ли доступ к premium
+function isPremiumUser(user) {
+  return user && (user.role === "subscriber" || user.role === "admin");
+}
+
+// админ ли пользователь
+function isAdmin(user) {
+  return user && user.role === "admin";
+}
+
+// текст роли
+function getRoleText(role) {
+  switch (role) {
+    case "subscriber":
+      return "подписчик";
+    case "admin":
+      return "администратор";
+    default:
+      return "пользователь";
+  }
+}
+
+// показываем или скрываем premium-часть
+function renderPremiumAccess(user) {
+  if (isPremiumUser(user)) {
+    premiumBtn.textContent = "Premium";
+    premiumBtn.classList.add("premium-active");
+
+    evidenceCard.classList.remove("hidden");
+    premiumLockCard.classList.add("hidden");
+
+    verdictCard.classList.remove("hidden");
+  } else {
+    premiumBtn.textContent = "Premium";
+    premiumBtn.classList.remove("premium-active");
+
+    evidenceCard.classList.add("hidden");
+    premiumLockCard.classList.remove("hidden");
+
+    verdictCard.classList.remove("hidden");
+  }
+}
+
+// текст для закрытого premium-блока
+function renderPremiumLockedState() {
+  evidenceState.textContent = "Подробное фактическое поведение доступно пользователям с Premium.";
+  networkStats.innerHTML = "";
+  domainsList.innerHTML = "";
+  requestsList.innerHTML = "";
+}
+
+// показываем кнопку выхода, если пользователь есть
+function renderAuthState(user) {
+  if (!user) {
+    logoutBtn.classList.add("hidden");
+    return;
+  }
+
+  logoutBtn.classList.remove("hidden");
+}
+
+// выход из аккаунта
+logoutBtn.addEventListener("click", async () => {
+  await chrome.storage.local.remove(["authToken", "authUser"]);
+
+  await chrome.storage.local.set({
+    enabled: false,
+    currentUrl: null,
+    lastEvidence: null,
+    isCollecting: false
+  });
+
+  chrome.runtime.sendMessage({
+    type: "RESET_STATE"
+  });
+
+  await renderState();
+});

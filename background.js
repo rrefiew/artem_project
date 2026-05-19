@@ -1,7 +1,10 @@
+//сколько последних запросов храним
 const MAX_STORED_REQUESTS = 50;
 
+//временно храним данные по вкладкам
 const tabEvidence = new Map();
 
+//база сторонних сервисов
 const KNOWN_THIRD_PARTY_PATTERNS = [
   {
     pattern: "google-analytics.com",
@@ -85,6 +88,7 @@ const KNOWN_THIRD_PARTY_PATTERNS = [
   }
 ];
 
+// при установке расширения все выключаем
 chrome.runtime.onInstalled.addListener(async () => {
   tabEvidence.clear();
 
@@ -96,6 +100,7 @@ chrome.runtime.onInstalled.addListener(async () => {
   });
 });
 
+// ставим дефолтное состояние
 initializeDefaultState();
 
 async function initializeDefaultState() {
@@ -111,13 +116,16 @@ async function initializeDefaultState() {
   }
 }
 
+// если вкладку закрыли, чистим данные по ней
 chrome.tabs.onRemoved.addListener((tabId) => {
   tabEvidence.delete(tabId);
 });
 
+// когда пользователь переключается между вкладками
 chrome.tabs.onActivated.addListener(async (activeInfo) => {
   const data = await chrome.storage.local.get(["enabled"]);
 
+  // если расширение выключено, ничего не делаем
   if (!data.enabled) {
     return;
   }
@@ -129,6 +137,7 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
       return;
     }
 
+    // если по вкладке еще нет данных, создаем пустую запись
     if (!tabEvidence.has(activeInfo.tabId)) {
       startEvidenceForTab(activeInfo.tabId, tab.url);
     }
@@ -139,6 +148,7 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
   }
 });
 
+// слушаем все сетевые запросы
 chrome.webRequest.onBeforeRequest.addListener(
   (details) => {
     handleWebRequest(details);
@@ -148,6 +158,7 @@ chrome.webRequest.onBeforeRequest.addListener(
   }
 );
 
+// когда вкладка загрузилась полностью
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   if (changeInfo.status !== "complete") {
     return;
@@ -163,13 +174,16 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     return;
   }
 
+  // если для вкладки еще нет, создаем
   if (!tabEvidence.has(tabId)) {
     startEvidenceForTab(tabId, tab.url);
     await saveEvidenceSnapshot(tabId);
   }
 });
 
+// сообщения
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  // запуск проверки текущего сайта
   if (message.type === "START_CURRENT_SITE") {
     startEvidenceForTab(message.tabId, message.url);
 
@@ -184,6 +198,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  // полный сброс состояния
   if (message.type === "RESET_STATE") {
     tabEvidence.clear();
 
@@ -199,13 +214,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 });
 
+// обработка каждого сетевого запроса
 async function handleWebRequest(details) {
   const data = await chrome.storage.local.get(["enabled"]);
 
+  // если расширение выключено, запросы не собираем
   if (!data.enabled) {
     return;
   }
 
+  // системные запросы без вкладки пропускаем
   if (details.tabId < 0) {
     return;
   }
@@ -220,10 +238,12 @@ async function handleWebRequest(details) {
     return;
   }
 
+  // все остальное считаем подзапросами страницы
   recordSubRequest(details);
   await saveEvidenceSnapshot(details.tabId);
 }
 
+// создаем пустую структуру для вкладки
 function startEvidenceForTab(tabId, pageUrl) {
   const mainHost = getHostname(pageUrl);
 
@@ -243,6 +263,7 @@ function startEvidenceForTab(tabId, pageUrl) {
   });
 }
 
+// записываем сторонний запрос
 function recordSubRequest(details) {
   const evidence = tabEvidence.get(details.tabId);
 
@@ -256,6 +277,7 @@ function recordSubRequest(details) {
     return;
   }
 
+  // свои домены не считаем сторонними
   if (isSameSite(requestHost, evidence.mainHost)) {
     return;
   }
@@ -264,6 +286,7 @@ function recordSubRequest(details) {
 
   evidence.thirdPartyRequestCount += 1;
 
+  // если домен встретился впервые, создаем запись
   if (!evidence.thirdPartyDomains[requestHost]) {
     evidence.thirdPartyDomains[requestHost] = {
       domain: requestHost,
@@ -275,15 +298,19 @@ function recordSubRequest(details) {
 
   evidence.thirdPartyDomains[requestHost].count += 1;
 
+  // считаем типы запросов
   evidence.thirdPartyDomains[requestHost].types[details.type] =
     (evidence.thirdPartyDomains[requestHost].types[details.type] || 0) + 1;
 
+  // считаем категории по домену
   evidence.thirdPartyDomains[requestHost].categories[classification.category] =
     (evidence.thirdPartyDomains[requestHost].categories[classification.category] || 0) + 1;
 
+  // общая статистика по категориям
   evidence.categoryCounts[classification.category] =
     (evidence.categoryCounts[classification.category] || 0) + 1;
 
+  // сохраняем пример запроса
   evidence.requests.push({
     domain: requestHost,
     type: details.type,
@@ -293,18 +320,20 @@ function recordSubRequest(details) {
     time: new Date().toISOString()
   });
 
+  // чтобы список не разрастался бесконечно
   if (evidence.requests.length > MAX_STORED_REQUESTS) {
     evidence.requests.shift();
   }
 }
 
+// сохраняем снимок данных в chrome.storage
 async function saveEvidenceSnapshot(tabId) {
   const evidence = buildEvidenceSnapshot(tabId);
 
   if (!evidence) {
     return;
   }
-//
+
   await chrome.storage.local.set({
     currentUrl: evidence.pageUrl,
     lastEvidence: evidence,
@@ -312,9 +341,11 @@ async function saveEvidenceSnapshot(tabId) {
   });
 }
 
+// собираем данные
 function buildEvidenceSnapshot(tabId, fallbackUrl = null) {
   const evidence = tabEvidence.get(tabId);
 
+  // если данных еще нет, возвращаем пустую структуру
   if (!evidence) {
     if (!fallbackUrl) {
       return null;
@@ -337,6 +368,7 @@ function buildEvidenceSnapshot(tabId, fallbackUrl = null) {
     };
   }
 
+  // домены сортируем по количеству запросов
   const domains = Object.values(evidence.thirdPartyDomains)
     .sort((a, b) => b.count - a.count)
     .slice(0, 15);
@@ -352,6 +384,7 @@ function buildEvidenceSnapshot(tabId, fallbackUrl = null) {
   };
 }
 
+// определяем категорию запроса
 function classifyRequest(url, host) {
   const lowerUrl = url.toLowerCase();
   const lowerHost = host.toLowerCase();
@@ -371,6 +404,7 @@ function classifyRequest(url, host) {
   };
 }
 
+// убираем параметры, чтобы не хранить лишние данные
 function sanitizeUrl(url) {
   try {
     const parsed = new URL(url);
@@ -381,6 +415,7 @@ function sanitizeUrl(url) {
   }
 }
 
+// достаем hostname из url
 function getHostname(url) {
   try {
     return new URL(url).hostname.replace(/^www\./, "");
@@ -389,6 +424,7 @@ function getHostname(url) {
   }
 }
 
+// проверяем, является ли запрос своим доменом
 function isSameSite(requestHost, mainHost) {
   if (!requestHost || !mainHost) {
     return true;
